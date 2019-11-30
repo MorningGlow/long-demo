@@ -1,0 +1,13 @@
+spring:
+  mail:
+    host: 10.33.22.101
+    username: BU22MES
+    password: 123456
+    port: 587
+    protocol: smtp
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          ssl:
+#            enable: true
