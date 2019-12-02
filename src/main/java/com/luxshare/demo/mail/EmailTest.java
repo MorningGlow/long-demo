@@ -29,7 +29,7 @@ public class EmailTest {
         message = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
         helper.setFrom("BU22MES@Luxshare-ict.com");
-        helper.setTo("Lion.Hua@luxshare-ict.com");
+        helper.setTo(new String[]{"Lion.Hua@luxshare-ict.com","Abbott.Hao@luxshare-ict.com"});
         helper.setSubject("标题：发送Html内容");
 
         StringBuffer sb = new StringBuffer();
