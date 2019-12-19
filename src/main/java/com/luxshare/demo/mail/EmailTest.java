@@ -134,8 +134,10 @@ public class EmailTest {
             path.toFile().delete();
         }
         SmbUtil.read(context, shareProperties, path);
-//        SmbUtil.write(context, shareProperties);
-        SmbUtil.moveSmbFileToSmb(smbFile, smbFile.getName(), shareProperties);
+        // 直接删除
+        SmbUtil.delete(smbFile);
+        // 备份
+//        SmbUtil.moveSmbFileToSmb(smbFile, smbFile.getName(), shareProperties);
         this.sendMail(mailEntity, new FileSystemResource(path));
     }
 

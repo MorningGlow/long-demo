@@ -70,6 +70,10 @@ public class SmbUtil {
     }
 
 
+    public static void delete(SmbFile source) throws SmbException {
+        source.delete();
+    }
+
     public static void moveSmbFileToSmb(SmbFile source, String target, ShareProperties shareProperties) throws IOException {
         try (SmbFile targetFile = newSmbFile(target, shareProperties)) {
             if (targetFile.exists()) {
