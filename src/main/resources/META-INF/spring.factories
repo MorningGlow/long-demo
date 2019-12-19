@@ -1,0 +1,2 @@
+org.springframework.context.ApplicationContextInitializer=\
+com.luxshare.demo.boot.FirstApplicationContextInitializer

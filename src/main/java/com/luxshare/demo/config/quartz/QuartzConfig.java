@@ -57,10 +57,11 @@ public class QuartzConfig {
     @Bean
     public Trigger trigger() {
         return TriggerBuilder.newTrigger()
-                .startNow()
+//                .startNow()
                 .withIdentity("myTrigger", TEST_GROUP)
                 .forJob(jobDetail())
-                .withSchedule(CronScheduleBuilder.cronSchedule("0/15 * * * * ?"))
+                // 从第五分钟开始,五分钟执行一次
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 1/5 * * * ?"))
                 .build();
     }
 
