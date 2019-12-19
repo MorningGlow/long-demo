@@ -1,6 +1,9 @@
 package com.luxshare.demo.mail;
 
 import com.luxshare.demo.DemoApplication;
+import jcifs.CIFSContext;
+import jcifs.context.SingletonContext;
+import jcifs.smb.SmbFile;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +13,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import javax.mail.MessagingException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 邮件测试
@@ -51,12 +55,13 @@ public class MailTest {
                 .setTo(new ArrayList<String>() {
                     {
                         add("Lion.Hua@luxshare-ict.com");
+                        add("Kevin.lee@luxshare-ict.com");
                     }
                 })
                 .setSubject("标题：发送Html内容")
                 .setSb(sb);
 //        emailTest.sendMailTest(mailEntity, "smb://mes:luxshare@10.32.36.230/mes共享盘/SPARK/", "Dashboard.html");
-        emailTest.sendMailTest(mailEntity,null);
+        emailTest.sendMailTest(mailEntity, null, null, null);
     }
 
     @Test
@@ -80,12 +85,20 @@ public class MailTest {
                 .setTo(new ArrayList<String>() {
                     {
                         add("Lion.Hua@luxshare-ict.com");
+                        add("Kevin.lee@luxshare-ict.com");
                     }
                 })
                 .setSubject("标题：发送Html内容")
                 .setSb(sb);
 
         SmbUtil.ShareProperties shareProperties = SmbUtil.defaultShareProperties();
-        emailTest.sendMailTest(mailEntity,shareProperties);
+        CIFSContext context = SmbUtil.withNTLMCredentials(SingletonContext.getInstance(), shareProperties);
+        List<SmbFile> smbFileList = SmbUtil.getAllByDir("smb://" + shareProperties.getServerName() + "/" + shareProperties.getShareRoot() + "/", context);
+        for (SmbFile smbFile : smbFileList) {
+            if (smbFile.isFile()) {
+                SmbUtil.ShareProperties share = SmbUtil.defaultShareProperties();
+                emailTest.sendMailTest(mailEntity, share.setFilePath(smbFile.getName()), context, smbFile);
+            }
+        }
     }
 }

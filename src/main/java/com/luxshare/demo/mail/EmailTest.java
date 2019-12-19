@@ -2,7 +2,6 @@ package com.luxshare.demo.mail;
 
 import com.alibaba.fastjson.JSON;
 import jcifs.CIFSContext;
-import jcifs.context.SingletonContext;
 import jcifs.smb.SmbException;
 import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFileInputStream;
@@ -129,14 +128,14 @@ public class EmailTest {
 
     }
 
-    public void sendMailTest(MailEntity mailEntity, SmbUtil.ShareProperties shareProperties) throws IOException, MessagingException {
+    public void sendMailTest(MailEntity mailEntity, SmbUtil.ShareProperties shareProperties, CIFSContext context, SmbFile smbFile) throws IOException, MessagingException {
         Path path = Paths.get(System.getProperty("user.dir"), shareProperties.getFilePath());
         if (path.toFile().exists()) {
             path.toFile().delete();
         }
-        CIFSContext context = SmbUtil.withNTLMCredentials(SingletonContext.getInstance(), shareProperties);
         SmbUtil.read(context, shareProperties, path);
-        //SmbUtil.write(context, shareProperties);
+//        SmbUtil.write(context, shareProperties);
+        SmbUtil.moveSmbFileToSmb(smbFile, smbFile.getName(), shareProperties);
         this.sendMail(mailEntity, new FileSystemResource(path));
     }
 

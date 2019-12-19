@@ -4,6 +4,7 @@ import jcifs.CIFSContext;
 import jcifs.CIFSException;
 import jcifs.context.SingletonContext;
 import jcifs.smb.NtlmPasswordAuthenticator;
+import jcifs.smb.SmbException;
 import jcifs.smb.SmbFile;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,8 +26,6 @@ import java.util.Objects;
 @Slf4j
 public class SmbUtil {
 
-    private static final Path TARGET_PATH = Paths.get(System.getProperty("user.dir"), "test.xlsx");
-
     public static void main(String[] args) throws IOException {
 
         ShareProperties shareProperties = new ShareProperties();
@@ -39,9 +38,11 @@ public class SmbUtil {
     public static void read(CIFSContext context, ShareProperties shareProperties, Path targetPath) throws IOException {
         long start = System.currentTimeMillis();
         SmbFileReader reader = new SmbFileReader();
-        InputStream in = reader.readSmbFile(getShareRootURL(shareProperties), context);
+        InputStream in = reader.readSmbFile(getShareRootURL(shareProperties) + shareProperties.getFilePath(), context);
 
-        Files.copy(in, TARGET_PATH, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        // 流关闭
+        in.close();
         long end = System.currentTimeMillis();
         log.info("Read File success,use time:" + (end - start) + "ms");
     }
@@ -51,7 +52,7 @@ public class SmbUtil {
         long start = System.currentTimeMillis();
         String dir = getShareRootURL(shareProperties) + shareProperties.getBackup();
         LocalDateTime now = LocalDateTime.now();
-        String format = "" + now.getYear() + now.getMonth() + now.getDayOfMonth() + now.getHour() + now.getMinute();
+        String format = "" + now.getYear() + now.getMonthValue() + now.getDayOfYear() + now.getHour() + now.getMinute() + now.getSecond();
         String targetPath = dir + File.separator + format + shareProperties.getFilePath();
         log.info("目标目录targetPath:" + targetPath);
 //        SmbUtil.SmbFileWriter.createDirectory(dir, context);
@@ -68,35 +69,64 @@ public class SmbUtil {
                 shareProperties.getUserName(), shareProperties.getPassword()));
     }
 
+
+    public static void moveSmbFileToSmb(SmbFile source, String target, ShareProperties shareProperties) throws IOException {
+        try (SmbFile targetFile = newSmbFile(target, shareProperties)) {
+            if (targetFile.exists()) {
+                targetFile.delete();
+            }
+            targetFile.createNewFile();
+            writeSmbFile(source.getInputStream(), target, shareProperties);
+            source.delete();
+        }
+    }
+
+    public static SmbFile newSmbFile(String path, ShareProperties shareProperties) throws MalformedURLException {
+        return new SmbFile(getShareRootURL(shareProperties) + shareProperties.getBackup() + "/" + path, build(shareProperties.getUserName(), shareProperties.getPassword()));
+    }
+
+    public static void writeSmbFile(InputStream in, String target, ShareProperties shareProperties) throws IOException {
+        if (null != in && StringUtils.isNotEmpty(target)) {
+            try (SmbFile file = newSmbFile(target, shareProperties)) {
+                if (!file.exists()) {
+                    try (SmbFile parent = newSmbFile(file.getParent(), shareProperties)) {
+                        if (!parent.exists()) {
+                            parent.mkdirs();
+                        }
+                        file.createNewFile();
+                    }
+                }
+                write(in, file);
+            }
+        }
+    }
+
+    private static void write(InputStream in, SmbFile file) throws IOException {
+        try (OutputStream os = file.getOutputStream()) {
+            byte[] bytes = new byte[1024];
+            while (in.read(bytes) != -1) {
+                os.write(bytes);
+            }
+            in.close();
+        }
+    }
+
+    private static CIFSContext build(String username, String password) {
+        return SingletonContext.getInstance().withCredentials(new NtlmPasswordAuthenticator(username, password));
+    }
+
     private static String getShareRootURL(ShareProperties shareProperties) {
         return "smb://" + shareProperties.getServerName() + "/" + shareProperties.getShareRoot() + "/";
     }
 
     static class SmbFileReader {
         public InputStream readSmbFile(String path, CIFSContext context) throws IOException {
-            SmbFile[] smbFiles = new SmbFile(path, context).listFiles();
-            List<SmbFile> list = new ArrayList<>();
-            for (SmbFile file : smbFiles) {
-                if (file.isFile()) {
-                    list.add(file);
+            try (SmbFile file = new SmbFile(path, context)) {
+                if (Objects.isNull(file) || !file.exists()) {
+                    throw new FileNotFoundException(path);
                 }
+                return file.getInputStream();
             }
-            // 如果文件夹内的所有文件,都发送完，那么返回空
-            if (list.size() > 0) {
-                try (SmbFile file = list.stream().findFirst().get()) {
-                    if (Objects.isNull(file) || !file.exists()) {
-                        throw new FileNotFoundException(path);
-                    }
-                    return file.getInputStream();
-                }
-            }
-            return null;
-//            try (SmbFile file = new SmbFile(path, context)) {
-//                if (Objects.isNull(file) || !file.exists()) {
-//                    throw new FileNotFoundException(path);
-//                }
-//                return file.getInputStream();
-//            }
         }
     }
 
@@ -143,6 +173,27 @@ public class SmbUtil {
                 return dir;
             }
         }
+    }
+
+    public static List<SmbFile> getAllByDir(String path, CIFSContext context) throws MalformedURLException, SmbException {
+        SmbFile file = new SmbFile(path, context);
+        List<SmbFile> list = new ArrayList<>();
+        SmbFile[] smbFiles = file.listFiles();
+        for (SmbFile smbFile : smbFiles) {
+            list.add(smbFile);
+        }
+        return list;
+    }
+
+    public static List<String> getFileName(String path, CIFSContext context) throws MalformedURLException, SmbException {
+        List<SmbFile> smbFiles = getAllByDir(path, context);
+        List<String> list = new ArrayList<>();
+        for (SmbFile file : smbFiles) {
+            if (file.isFile()) {
+                list.add(file.getName());
+            }
+        }
+        return list;
     }
 
     public static ShareProperties defaultShareProperties() {
